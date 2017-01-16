@@ -21,8 +21,6 @@
  * @author     $Author$
  */
 
-require_once 'Smarty/Smarty.class.php';
-
 /**
  * The Enlight_Template_Manager is an extension of smarty to manually set the config in the class constructor.
  *
@@ -51,7 +49,11 @@ class Enlight_Template_Manager extends Smarty
      *
      * @var string
      */
-    public $template_class = 'Enlight_Template_Default';
+    public $template_class = \Enlight_Template_Default::class;
+
+    public $_file_perms;
+
+    public $_dir_perms;
 
     /**
      * @var Enlight_Event_EventManager
@@ -61,30 +63,31 @@ class Enlight_Template_Manager extends Smarty
     /**
      * Class constructor, initializes basic smarty properties:
      * Template, compile, plugin, cache and config directory.
-     *
-     * @param   null|array|Enlight_Config $options
+     * @param null|array $options
+     * @param Enlight_Event_EventManager $eventManager
      */
-    public function __construct($options = null)
+    public function __construct($options = null, Enlight_Event_EventManager $eventManager = null)
     {
-        // self pointer needed by some other class methods
-        $this->smarty = $this;
-
-        $this->start_time = microtime(true);
+        parent::__construct();
 
         $this->_file_perms = 0666 & ~umask();
         $this->_dir_perms = 0777 & ~umask();
 
+        // rest global vars
+        Smarty::$global_tpl_vars = [];
+
         // set default dirs
-        $this->setTemplateDir('.' . DS . 'templates' . DS)
-            ->setCompileDir('.' . DS . 'templates_c' . DS)
-            ->setPluginsDir(array(dirname(__FILE__) . '/Plugins/', SMARTY_PLUGINS_DIR))
-            ->setCacheDir('.' . DS . 'cache' . DS)
-            ->setConfigDir('.' . DS . 'configs' . DS);
+        $this->setPluginsDir([__DIR__ . '/Plugins/', SMARTY_PLUGINS_DIR]);
 
         $this->debug_tpl = 'file:' . SMARTY_DIR . '/debug.tpl';
 
-        $this->setOptions($options);
-        $this->setCharset();
+        if ($options !== null) {
+            $this->setOptions($options);
+        }
+
+        if ($eventManager !== null) {
+            $this->eventManager = $eventManager;
+        }
     }
 
     /**
@@ -97,70 +100,73 @@ class Enlight_Template_Manager extends Smarty
             self::$_CHARSET = $charset;
         }
         mb_internal_encoding(self::$_CHARSET);
+
         return $this;
     }
 
     /**
-     * @param   array|Enlight_Config $options
-     * @return  Enlight_Template_Manager
+     * @param   array $options
      */
-    public function setOptions($options = null)
+    public function setOptions(array $options)
     {
-        if ($options === null) {
-            return $this;
-        }
-
-        if ($options instanceof Enlight_Config) {
-            $options = $options->toArray();
-        }
-
         foreach ($options as $key => $option) {
+            // Use public properties
+            if (property_exists($this, $key)) {
+                $this->$key = $option;
+                continue;
+            }
+            // Add camel case support
+            $name = ltrim(strtolower(preg_replace('/[A-Z]/', '_$0', $key)), '_');
+            if (property_exists($this, $name)) {
+                $this->$name = $option;
+                continue;
+            }
+
             $key = str_replace(' ', '', ucwords(str_replace('_', ' ', $key)));
             $this->{'set' . $key}($option);
         }
-
-        return $this;
     }
 
     /**
-     * Set template directory
+     * Set template directories
      *
-     * @param string|array $template_dir directory(s) of template sources
+     * @param string|array $templateDir directory(s) of template sources
+     * @param bool $isConfig unused
      * @return Smarty current Smarty instance for chaining
      */
-    public function setTemplateDir($template_dir)
+    public function setTemplateDir($templateDir, $isConfig = false)
     {
-        $template_dir = (array) $template_dir;
-
-        foreach ($template_dir as $k => $v) {
-            $template_dir[$k] = $this->resolveTemplateDir($v, $k);
-            if ($template_dir[$k] === false) {
-                unset($template_dir[$k]);
+        $templateDir = (array) $templateDir;
+        foreach ($templateDir as $k => $v) {
+            $templateDir[$k] = $this->resolveTemplateDir($v, $k);
+            if ($templateDir[$k] === false) {
+                unset($templateDir[$k]);
             }
         }
+        unset($k, $v);
 
         /**
          * Filter all directories which includes the new shopware themes.
          */
-        $themeDirectories = array_filter($template_dir, function ($themeDir) {
-            return (stripos($themeDir, '/Themes/Frontend/'));
+        $themeDirectories = array_filter($templateDir, function ($themeDir) {
+            return stripos($themeDir, '/Themes/Frontend/');
         });
 
         /**
          * If no shopware theme assigned, we have to use the passed inheritance
          */
         if (empty($themeDirectories)) {
-            return parent::setTemplateDir($template_dir);
+            // eg backend
+            return parent::setTemplateDir($templateDir);
         }
 
         /**
          * Select the plugin directories and the bare theme which used
          * as base theme for all extensions
          */
-        $pluginDirs = array_diff($template_dir, $themeDirectories);
+        $pluginDirs = array_diff($templateDir, $themeDirectories);
 
         $inheritance = $this->buildInheritance($themeDirectories, $pluginDirs);
-
         $inheritance = $this->unifyDirectories($inheritance);
 
         return parent::setTemplateDir($inheritance);
@@ -169,33 +175,40 @@ class Enlight_Template_Manager extends Smarty
     /**
      * Add template directory(s)
      *
-     * @param string|array $template_dir directory(s) of template sources
+     * @param string|array $templateDir directory(s) of template sources
      * @param string       $key          of the array element to assign the template dir to
      * @param null $position
      * @return Smarty current Smarty instance for chaining
      */
-    public function addTemplateDir($template_dir, $key = null, $position = null)
+    public function addTemplateDir($templateDir, $key = null, $position = null)
     {
-        if (is_array($template_dir)) {
-            foreach ($template_dir as $k => $v) {
+        if (is_array($templateDir)) {
+            $templateDir = array_reverse($templateDir);
+            foreach ($templateDir as $k => $v) {
                 $this->addTemplateDir($v, is_int($k) ? null : $k);
             }
             return $this;
         }
-        $_template_dir = $this->getTemplateDir();
-        if ($position === self::POSITION_PREPEND) {
+
+        $existingTemplateDir = $this->getTemplateDir();
+        if ($position !== self::POSITION_PREPEND) {
             if ($key === null) {
-                array_unshift($_template_dir, $template_dir);
+                array_unshift($existingTemplateDir, $templateDir);
             } else {
-                $_template_dir = array_merge(array($key => $template_dir), $_template_dir);
-                $_template_dir[$key] = $template_dir;
+                $existingTemplateDir = array_merge([$key => $templateDir], $existingTemplateDir);
+                $existingTemplateDir[$key] = $templateDir;
             }
         } elseif ($key !== null) {
-            $_template_dir[$key] = $template_dir;
+            $existingTemplateDir[$key] = $templateDir;
         } else {
-            $_template_dir[] = $template_dir;
+            $existingTemplateDir[] = $templateDir;
         }
-        $this->setTemplateDir($_template_dir);
+
+        $this->template_dir = [];
+        $this->_processedTemplateDir = [];
+
+        parent::addTemplateDir($existingTemplateDir);
+
         return $this;
     }
 
@@ -204,29 +217,29 @@ class Enlight_Template_Manager extends Smarty
      * @param   int|null $key
      * @return  string
      */
-    public function resolveTemplateDir($templateDir, $key = null)
+    private function resolveTemplateDir($templateDir, $key = null)
     {
         if ($this->eventManager !== null) {
             $templateDir = $this->eventManager->filter(
                 __CLASS__ . '_ResolveTemplateDir',
                 $templateDir,
-                array('subject' => $this, 'key' => $key)
+                ['subject' => $this, 'key' => $key]
             );
         }
         $templateDir = Enlight_Loader::isReadable($templateDir);
         return $templateDir;
     }
 
-    /**
-     * @param   $eventManager
-     * @return  Enlight_Template_Manager
-     */
-    public function setEventManager($eventManager)
-    {
-        //Enlight_Template_Manager_AddTemplateDir
-        $this->eventManager = $eventManager;
-        return $this;
-    }
+//    /**
+//     * @param   $eventManager
+//     * @return  Enlight_Template_Manager
+//     */
+//    public function setEventManager($eventManager)
+//    {
+//        $this->eventManager = $eventManager;
+//
+//        return $this;
+//    }
 
     /**
      * @param string[] $inheritance
@@ -235,8 +248,7 @@ class Enlight_Template_Manager extends Smarty
     private function enforceEndingSlash($inheritance)
     {
         return array_map(function ($dir) {
-            $dir = rtrim($dir, '/') . '/';
-            return $dir;
+            return rtrim($dir, '/') . '/';
         }, $inheritance);
     }
 
@@ -244,7 +256,7 @@ class Enlight_Template_Manager extends Smarty
      * @param string[] $inheritance
      * @return string[]
      */
-    public function unifyDirectories($inheritance)
+    private function unifyDirectories($inheritance)
     {
         $inheritance = $this->enforceEndingSlash($inheritance);
         $inheritance = array_map('Enlight_Loader::realpath', $inheritance);
@@ -258,7 +270,7 @@ class Enlight_Template_Manager extends Smarty
      * @param string[] $pluginDirs
      * @return string[]
      */
-    public function buildInheritance($themeDirectories, $pluginDirs)
+    private function buildInheritance($themeDirectories, $pluginDirs)
     {
         $themeDirectories = $this->unifyDirectories($themeDirectories);
 
@@ -285,6 +297,7 @@ class Enlight_Template_Manager extends Smarty
                 $after[] = $dir;
             }
         }
+
         return array_merge($after, $pluginDirs, $before);
     }
 }

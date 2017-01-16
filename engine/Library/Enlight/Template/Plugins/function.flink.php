@@ -42,11 +42,11 @@ function smarty_function_flink($params, $template)
         // try to find the file on the filesystem
         foreach ($template->smarty->getTemplateDir() as $dir) {
             if (file_exists($dir . $file)) {
-                $file = Enlight_Loader::realpath($dir) . DS . str_replace('/', DS, $file);
+                $file = Enlight_Loader::realpath($dir) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file);
                 break;
             }
             if ($useIncludePath) {
-                if ($dir === '.' . DS) {
+                if ($dir === '.' . DIRECTORY_SEPARATOR) {
                     $dir = '';
                 }
                 if (($result = Enlight_Loader::isReadable($dir . $file)) !== false) {

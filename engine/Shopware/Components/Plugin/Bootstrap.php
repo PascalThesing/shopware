@@ -828,7 +828,7 @@ abstract class Shopware_Components_Plugin_Bootstrap extends Enlight_Plugin_Boots
      */
     public function extendsEmotionTemplates(Enlight_Controller_ActionEventArgs $args)
     {
-        /**@var $view Enlight_View_Default*/
+        /** @var Enlight_View_Default $view */
         $view = $args->getSubject()->View();
 
         if (file_exists($this->Path() . '/Views/emotion_components/')) {

@@ -1,8 +1,4 @@
-{extends file='frontend/index/index.tpl'}
-
-{block name='frontend_index_header'}
-    {include file='frontend/blog/header.tpl'}
-{/block}
+{extends file='frontend/blog/index.tpl'}
 
 {* Main content *}
 {block name='frontend_index_content'}
@@ -144,3 +140,4 @@
         {/block}
     </div>
 {/block}
+

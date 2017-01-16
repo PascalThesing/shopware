@@ -1,1 +1,1 @@
-{extends file="frontend/index/sidebar.tpl"}
+{include file="frontend/index/sidebar.tpl"}

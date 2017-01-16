@@ -21,8 +21,6 @@
  * @author     $Author$
  */
 
-require_once 'Smarty/Smarty.class.php';
-
 /**
  * The Enlight_Template_Default class is an extension of Smarty_Internal_Template to extend the
  * template via smarty blocks.
@@ -57,9 +55,9 @@ class Enlight_Template_Default extends Smarty_Internal_Template
      * Assigns a smarty variable.
      *
      * @param array|string $tpl_var the template variable name(s)
-     * @param mixed        $value   the value to assign
-     * @param bool         $nocache if true any output of this variable will be not cached
-     * @param bool         $scope the scope the variable will have  (local,parent or root)
+     * @param mixed $value the value to assign
+     * @param bool $nocache if true any output of this variable will be not cached
+     * @param bool $scope the scope the variable will have  (local,parent or root)
      * @return Enlight_Template_Default
      */
     public function assign($tpl_var, $value = null, $nocache = false, $scope = null)
@@ -84,7 +82,7 @@ class Enlight_Template_Default extends Smarty_Internal_Template
      * Clears the given assigned template variable.
      *
      * @param   string|array|null $tpl_var the template variable(s) to clear
-     * @param   int               $scope
+     * @param   int $scope
      * @return  Enlight_Template_Default instance for chaining
      */
     public function clearAssign($tpl_var, $scope = null)
@@ -116,40 +114,15 @@ class Enlight_Template_Default extends Smarty_Internal_Template
     /**
      * Extends a template block by name.
      *
-     * @param        $spec
-     * @param        $content
+     * @param $spec
+     * @param $content
      * @param string $mode
      * @return void
      */
     public function extendsBlock($spec, $content, $mode = self::BLOCK_REPLACE)
     {
-        if ($mode === null) {
-            $mode = self::BLOCK_REPLACE;
-        }
-        $complete = $this->smarty->left_delimiter . '$smarty.block.child' . $this->smarty->right_delimiter;
-
-        if (strpos($content, $complete) !== false) {
-            if (isset($this->block_data[$spec])) {
-                $content = str_replace(
-                    $complete,
-                    $this->block_data[$spec]['source'],
-                    $content
-                );
-                unset($this->block_data[$spec]);
-            } else {
-                $content = str_replace($complete, '', $content);
-            }
-        }
-        if (isset($this->block_data[$spec])) {
-            if (strpos($this->block_data[$spec]['source'], '%%%%SMARTY_PARENT%%%%') !== false) {
-                $content = str_replace('%%%%SMARTY_PARENT%%%%', $content, $this->block_data[$spec]['source']);
-            } elseif ($this->block_data[$spec]['mode'] == 'prepend') {
-                $content = $this->block_data[$spec]['source'] . $content;
-            } elseif ($this->block_data[$spec]['mode'] == 'append') {
-                $content .= $this->block_data[$spec]['source'];
-            }
-        }
-        $this->block_data[$spec] = array('source' => $content, 'mode' => $mode, 'file' => null);
+        $template = sprintf('string:{block %s %s}%s{/block}', $spec, $mode, $content);
+        $this->extendsTemplate($template);
     }
 
     /**
@@ -160,6 +133,9 @@ class Enlight_Template_Default extends Smarty_Internal_Template
      */
     public function extendsTemplate($templateName)
     {
+        if (strpos($this->template_resource, 'extends:') !== 0) {
+            $this->template_resource = 'extends:' . $this->template_resource;
+        }
         $this->template_resource .= '|' . $templateName;
     }
 
@@ -168,13 +144,14 @@ class Enlight_Template_Default extends Smarty_Internal_Template
      *
      * @param   null $cacheId
      * @return  Enlight_Template_Default
+     * @deprecated since 5.3, to be removed in 5.4
      */
     public function setCacheId($cacheId = null)
     {
         if (is_array($cacheId)) {
             $cacheId = implode('|', $cacheId);
         }
-        $this->cache_id = (string) $cacheId;
+        $this->cache_id = (string)$cacheId;
         return $this;
     }
 
@@ -183,13 +160,14 @@ class Enlight_Template_Default extends Smarty_Internal_Template
      *
      * @param   null $cacheId
      * @return  Enlight_Template_Default
+     * @deprecated since 5.3, to be removed in 5.4
      */
     public function addCacheId($cacheId)
     {
         if (is_array($cacheId)) {
             $cacheId = implode('|', $cacheId);
         } else {
-            $cacheId = (string) $cacheId;
+            $cacheId = (string)$cacheId;
         }
         if ($this->cache_id === null) {
             $this->cache_id = $cacheId;
@@ -211,6 +189,7 @@ class Enlight_Template_Default extends Smarty_Internal_Template
     /**
      * Returns the instance of the Enlight_Template_Default
      * @return Enlight_Template_Default
+     * @deprecated since 5.3, to be removed in 5.4
      */
     public function Template()
     {

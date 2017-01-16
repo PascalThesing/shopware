@@ -239,6 +239,13 @@ class Enlight_Controller_Plugins_ViewRenderer_Bootstrap extends Enlight_Plugin_B
     public function render()
     {
         $template = $this->Action()->View()->Template();
+
+        $assigned = $this->Action()->View()->getAssign();
+
+        $templateName = $template->source->resource;
+        $this->Action()->View()->loadTemplate($templateName);
+        $this->Action()->View()->assign($assigned);
+
         return $this->renderTemplate($template);
     }
 

@@ -35,7 +35,7 @@
  * @copyright  Copyright (c) 2011, shopware AG (http://www.shopware.de)
  * @license    http://enlight.de/license     New BSD License
  */
-class Enlight_View_Default extends Enlight_View implements Enlight_View_Cache
+class Enlight_View_Default extends Enlight_View
 {
     /**
      * The template manager instance.
@@ -50,13 +50,6 @@ class Enlight_View_Default extends Enlight_View implements Enlight_View_Cache
      * @var     Enlight_Template_Default
      */
     protected $template;
-
-    /**
-     * Default nocache flag.
-     *
-     * @var     bool
-     */
-    protected $nocache;
 
     /**
      * Default assign scope
@@ -186,15 +179,15 @@ class Enlight_View_Default extends Enlight_View implements Enlight_View_Cache
     /**
      * Extends a template block by name.
      *
-     * @param          $spec
-     * @param          $content
-     * @param   string $mode
-     * @return  Enlight_View_Default
+     * @param string $spec
+     * @param string $content
+     * @param string $mode
+     * @return Enlight_View_Default
      */
     public function extendsBlock($spec, $content, $mode)
     {
         if ($this->template !== null) {
-            $this->Template()->extendsBlock($spec, $content, $mode);
+            $this->template->extendsBlock($spec, $content, $mode);
         }
         return $this;
     }
@@ -221,9 +214,6 @@ class Enlight_View_Default extends Enlight_View implements Enlight_View_Cache
      */
     public function assign($spec, $value = null, $nocache = null, $scope = null)
     {
-        if ($this->nocache !== null && $nocache === null) {
-            $nocache = $this->nocache;
-        }
         if ($this->scope !== null && $scope === null) {
             $scope = $this->scope;
         }
@@ -290,10 +280,10 @@ class Enlight_View_Default extends Enlight_View implements Enlight_View_Cache
      *
      * @param   bool $value
      * @return  Enlight_View_Default
+     * @deprecated since 5.3, to be removed in 5.4
      */
     public function setNocache($value = true)
     {
-        $this->nocache = (bool) $value;
         return $this;
     }
 
@@ -313,22 +303,11 @@ class Enlight_View_Default extends Enlight_View implements Enlight_View_Cache
      *
      * @param   bool $value
      * @return  Enlight_View_Default
+     * @deprecated since 5.3, to be removed in 5.4
      */
     public function setCaching($value = true)
     {
-        $this->Template()->caching = (bool) $value;
         return $this;
-    }
-
-    /**
-     * Checks if the template is already cached.
-     *
-     * @deprecated 4.2
-     * @return false
-     */
-    public function isCached()
-    {
-        return false;
     }
 
     /**
@@ -336,10 +315,10 @@ class Enlight_View_Default extends Enlight_View implements Enlight_View_Cache
      *
      * @param   string|array $cache_id
      * @return  Enlight_View_Default
+     * @deprecated since 5.3, to be removed in 5.4
      */
     public function setCacheId($cache_id = null)
     {
-        $this->Template()->setCacheId($cache_id);
         return $this;
     }
 
@@ -348,16 +327,17 @@ class Enlight_View_Default extends Enlight_View implements Enlight_View_Cache
      *
      * @param   string|array $cache_id
      * @return  Enlight_View_Default
+     * @deprecated since 5.3, to be removed in 5.4
      */
     public function addCacheId($cache_id)
     {
-        $this->Template()->addCacheId($cache_id);
         return $this;
     }
 
     /**
      * Returns the cache id of the internal template object.
      * @return  string
+     * @deprecated since 5.3, to be removed in 5.4
      */
     public function getCacheId()
     {
